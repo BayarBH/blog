@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Code Illustrated #1 — The Lifecycle of a Single Command</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #FFFFFF;
+            --bg-card: ##FAFAF7;
+            --bg-code: #F5F3EE;
+            --text-primary: #1A1A18;
+            --text-secondary: #5C5C58;
+            --text-tertiary: #8A8A85;
+            --border: #E5E3DC;
+            --accent: #2D5BE3;
+            --accent-light: #EEF2FC;
+            --p1: #3B8BD4;
+            --p1l: #E6F1FB;
+            --p1d: #0C447C;
+            --p2: #7F77DD;
+            --p2l: #EEEDFE;
+            --p2d: #3C3489;
+            --p3l: #F1EFE8;
+            --p3d: #2C2C2A;
+            --p4l: #FAEEDA;
+            --p5l: #E1F5EE;
+            --p5d: #085041;
+            --al: #FBEAF0;
+            --ad: #72243E;
+            --serif: 'Newsreader', Georgia, serif;
+            --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+            --mono: 'JetBrains Mono', 'Fira Code', monospace
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text-primary);
+            font-family: var(--sans);
+            font-size: 17px;
+            line-height: 1.82;
+            -webkit-font-smoothing: antialiased
+        }
+
+        .article {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 60px 24px 120px
+        }
+
+        .series-label {
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent);
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 16px
+        }
+
+        h1 {
+            font-family: var(--serif);
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1.25;
+            margin-bottom: 14px;
+            letter-spacing: -.02em
+        }
+
+        .subtitle {
+            font-size: 19px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 40px
+        }
+
+        .meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 14px;
+            color: var(--text-tertiary);
+            padding-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 48px;
+            flex-wrap: wrap
+        }
+
+        .meta-dot {
+            color: var(--border)
+        }
+
+        h2 {
+            font-family: var(--serif);
+            font-size: 30px;
+            font-weight: 700;
+            line-height: 1.35;
+            margin: 64px 0 20px
+        }
+
+        h3 {
+            font-family: var(--sans);
+            font-size: 19px;
+            font-weight: 600;
+            line-height: 1.5;
+            margin: 40px 0 12px
+        }
+
+        p {
+            margin-bottom: 20px
+        }
+
+        code {
+            font-family: var(--mono);
+            font-size: .88em;
+            background: var(--bg-code);
+            padding: 2px 7px;
+            border-radius: 4px
+        }
+
+        pre {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px 24px;
+            overflow-x: auto;
+            margin: 24px 0 28px;
+            font-family: var(--mono);
+            font-size: 14px;
+            line-height: 1.7
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            font-size: inherit
+        }
+
+        .phase-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 32px 0;
+            position: relative
+        }
+
+        .phase-card::before {
+            content: attr(data-phase);
+            position: absolute;
+            top: -13px;
+            left: 24px;
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: .06em;
+            padding: 2px 12px;
+            border-radius: 20px
+        }
+
+        .phase-card[data-color="blue"]::before {
+            background: var(--p1l);
+            color: var(--p1d)
+        }
+
+        .phase-card[data-color="purple"]::before {
+            background: var(--p2l);
+            color: var(--p2d)
+        }
+
+        .phase-card[data-color="gray"]::before {
+            background: var(--p3l);
+            color: var(--p3d)
+        }
+
+        .phase-card[data-color="amber"]::before {
+            background: var(--p4l);
+            color: #633806
+        }
+
+        .phase-card[data-color="teal"]::before {
+            background: var(--p5l);
+            color: var(--p5d)
+        }
+
+        .phase-card[data-color="pink"]::before {
+            background: var(--al);
+            color: var(--ad)
+        }
+
+        .phase-card h3 {
+            margin-top: 8px
+        }
+
+        .phase-card h3:first-child {
+            margin-top: 0
+        }
+
+        .insight {
+            border-left: 3px solid var(--accent);
+            padding: 16px 20px;
+            margin: 24px 0;
+            background: var(--accent-light);
+            border-radius: 0 8px 8px 0;
+            font-size: 16px;
+            line-height: 1.75
+        }
+
+        .diagram-wrap {
+            margin: 40px -32px;
+            padding: 0
+        }
+
+        .diagram-wrap svg {
+            width: 100%;
+            display: block
+        }
+
+        .parallel-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 20px 0
+        }
+
+        .parallel-item {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            background: var(--bg)
+        }
+
+        .parallel-item .label {
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--p1d);
+            margin-bottom: 4px
+        }
+
+        .parallel-item .desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6
+        }
+
+        .flow-list {
+            list-style: none;
+            margin: 20px 0;
+            padding: 0
+        }
+
+        .flow-list li {
+            position: relative;
+            padding: 12px 0 12px 36px;
+            border-left: 2px solid var(--border);
+            margin-left: 8px
+        }
+
+        .flow-list li:last-child {
+            border-left-color: transparent
+        }
+
+        .flow-list li::before {
+            content: attr(data-step);
+            position: absolute;
+            left: -9px;
+            top: 12px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--mono)
+        }
+
+        .toc {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin: 40px 0 56px
+        }
+
+        .toc-title {
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 16px
+        }
+
+        .toc-list {
+            list-style: none;
+            padding: 0
+        }
+
+        .toc-list li {
+            margin-bottom: 8px
+        }
+
+        .toc-list a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 15px;
+            transition: color .15s
+        }
+
+        .toc-list a:hover {
+            color: var(--accent)
+        }
+
+        .toc-list .pn {
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--text-tertiary);
+            margin-right: 8px
+        }
+
+        .sep {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 56px 0
+        }
+
+        .next-teaser {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin-top: 56px
+        }
+
+        .next-teaser .label {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text-tertiary);
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 8px
+        }
+
+        .next-teaser .title {
+            font-family: var(--serif);
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px
+        }
+
+        .next-teaser .desc {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.7
+        }
+
+        .tool-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 15px
+        }
+
+        .tool-table th {
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-tertiary);
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            padding: 8px 12px;
+            border-bottom: 2px solid var(--border)
+        }
+
+        .tool-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top
+        }
+
+        .tool-table td:first-child {
+            font-family: var(--mono);
+            font-size: 14px;
+            color: var(--accent);
+            white-space: nowrap
+        }
+
+        @media(max-width:600px) {
+            h1 {
+                font-size: 28px
+            }
+
+            h2 {
+                font-size: 22px
+            }
+
+            .article {
+                padding: 40px 16px 80px
+            }
+
+            .phase-card {
+                padding: 24px 20px;
+                margin: 24px -4px
+            }
+
+            .diagram-wrap {
+                margin: 32px -20px
+            }
+
+            .parallel-grid {
+                grid-template-columns: 1fr
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <article class="article">
+        <div class="series-label">Claude Code Illustrated · Part 1</div>
+        <h1>The lifecycle of a single command</h1>
+        <p class="subtitle">From typing <code>fix the bug in auth.ts</code> in your terminal to the code actually being
+            patched — what happens inside Claude Code? This article traces a single command through 500,000 lines of
+            leaked source.</p>
+        <div class="meta"><span>2026-03-31</span><span class="meta-dot">·</span><span>Based on the leaked
+                source</span><span class="meta-dot">·</span><span>~1,900 files · 512,000+ lines TypeScript</span></div>
+
+        <nav class="toc">
+            <div class="toc-title">Contents</div>
+            <ol class="toc-list">
+                <li><a href="#overview"><span class="pn">00</span>The big picture: five phases</a></li>
+                <li><a href="#phase1"><span class="pn">01</span>Bootstrap — the art of parallel prefetch</a></li>
+                <li><a href="#phase2"><span class="pn">02</span>Context assembly — building the system prompt</a></li>
+                <li><a href="#phase3"><span class="pn">03</span>Input routing — command or conversation?</a></li>
+                <li><a href="#phase4"><span class="pn">04</span>Tool-call loop — the heart of the agent</a></li>
+                <li><a href="#phase5"><span class="pn">05</span>Output — rendering, memory, and telemetry</a></li>
+                <li><a href="#agents"><span class="pn">06</span>Recursion: sub-agents and multi-agent swarms</a></li>
+                <li><a href="#takeaways"><span class="pn">07</span>Design decisions and takeaways</a></li>
+            </ol>
+        </nav>
+
+        <h2 id="overview">The big picture</h2>
+        <p>On the surface, Claude Code is a terminal CLI. Under the hood, it's a full <strong>agentic system</strong> —
+            an autonomous agent with tool-calling capabilities, a layered permission model, a persistent memory system,
+            and multi-agent orchestration.</p>
+        <p>A single user command passes through five phases from input to completion. Burn this diagram into your mental
+            model — it's the anchor for understanding the entire system:</p>
+
+        <div class="diagram-wrap">
+            <svg width="100%" viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg">
+                <style>
+                    .nt {
+                        font-family: 'IBM Plex Sans', sans-serif;
+                        font-size: 13px;
+                        fill: #1A1A18;
+                        font-weight: 500
+                    }
+
+                    .ns {
+                        font-family: 'IBM Plex Sans', sans-serif;
+                        font-size: 11px;
+                        fill: #5C5C58
+                    }
+
+                    .nm {
+                        font-family: 'JetBrains Mono', monospace;
+                        font-size: 10px;
+                        fill: #8A8A85
+                    }
+
+                    .am {
+                        stroke: #B4B2A9;
+                        stroke-width: 1.5;
+                        fill: none
+                    }
+
+                    .al {
+                        stroke: #3B8BD4;
+                        stroke-width: 1.5;
+                        fill: none;
+                        stroke-dasharray: 5 4
+                    }
+
+                    .as {
+                        stroke: #D4537E;
+                        stroke-width: 1.2;
+                        fill: none;
+                        stroke-dasharray: 4 3
+                    }
+
+                    @media(prefers-color-scheme:dark) {
+                        .nt {
+                            fill: #E8E6DE
+                        }
+
+                        .ns {
+                            fill: #9C9A92
+                        }
+
+                        .nm {
+                            fill: #73726C
+                        }
+
+                        .am {
+                            stroke: #5F5E5A
+                        }
+
+                        .al {
+                            stroke: #378ADD
+                        }
+                    }
+                </style>
+                <defs>
+                    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6"
+                        orient="auto-start-reverse">
+                        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </marker>
+                </defs>
+                <rect x="40" y="30" width="140" height="52" rx="8" fill="#E6F1FB" stroke="#85B7EB" stroke-width="0.5" />
+                <text class="nt" x="110" y="52" text-anchor="middle">Bootstrap</text><text class="ns" x="110" y="68"
+                    text-anchor="middle">main.tsx</text><text class="nm" x="110" y="16" text-anchor="middle">PHASE
+                    1</text>
+                <line x1="180" y1="56" x2="220" y2="56" class="am" marker-end="url(#ah)" />
+                <rect x="222" y="30" width="140" height="52" rx="8" fill="#EEEDFE" stroke="#AFA9EC"
+                    stroke-width="0.5" /><text class="nt" x="292" y="52" text-anchor="middle">Context build</text><text
+                    class="ns" x="292" y="68" text-anchor="middle">context.ts</text><text class="nm" x="292" y="16"
+                    text-anchor="middle">PHASE 2</text>
+                <line x1="362" y1="56" x2="402" y2="56" class="am" marker-end="url(#ah)" />
+                <rect x="404" y="30" width="120" height="52" rx="8" fill="#F1EFE8" stroke="#B4B2A9"
+                    stroke-width="0.5" /><text class="nt" x="464" y="52" text-anchor="middle">Input routing</text><text
+                    class="ns" x="464" y="68" text-anchor="middle">commands.ts</text><text class="nm" x="464" y="16"
+                    text-anchor="middle">PHASE 3</text>
+                <line x1="464" y1="82" x2="464" y2="120" class="am" marker-end="url(#ah)" />
+                <rect x="60" y="122" width="560" height="230" rx="12" fill="none" stroke="#85B7EB" stroke-width="1"
+                    stroke-dasharray="6 4" /><text class="nm" x="80" y="140">PHASE 4 — TOOL-CALL LOOP</text>
+                <rect x="100" y="156" width="180" height="48" rx="8" fill="#E6F1FB" stroke="#85B7EB"
+                    stroke-width="0.5" /><text class="nt" x="190" y="176" text-anchor="middle">QueryEngine</text><text
+                    class="ns" x="190" y="192" text-anchor="middle">Anthropic API call</text>
+                <line x1="280" y1="180" x2="320" y2="180" class="am" marker-end="url(#ah)" />
+                <rect x="322" y="156" width="140" height="48" rx="8" fill="#F1EFE8" stroke="#B4B2A9"
+                    stroke-width="0.5" /><text class="nt" x="392" y="176" text-anchor="middle">Parse
+                    response</text><text class="ns" x="392" y="192" text-anchor="middle">text or tool_use?</text>
+                <line x1="360" y1="204" x2="300" y2="236" class="am" marker-end="url(#ah)" /><text class="nm" x="310"
+                    y="218">text</text>
+                <rect x="220" y="238" width="110" height="36" rx="6" fill="#E1F5EE" stroke="#5DCAA5"
+                    stroke-width="0.5" /><text class="ns" x="275" y="261" text-anchor="middle"
+                    style="fill:#0F6E56">Stream to terminal</text>
+                <line x1="430" y1="204" x2="480" y2="236" class="am" marker-end="url(#ah)" /><text class="nm" x="468"
+                    y="218">tool_use</text>
+                <rect x="430" y="238" width="160" height="48" rx="8" fill="#FAEEDA" stroke="#FAC775"
+                    stroke-width="0.5" /><text class="nt" x="510" y="258" text-anchor="middle">Permission
+                    check</text><text class="ns" x="510" y="274" text-anchor="middle">toolPermission</text>
+                <line x1="510" y1="286" x2="510" y2="308" class="am" marker-end="url(#ah)" />
+                <rect x="430" y="310" width="160" height="36" rx="6" fill="#EAF3DE" stroke="#97C459"
+                    stroke-width="0.5" /><text class="ns" x="510" y="333" text-anchor="middle"
+                    style="fill:#3B6D11">Execute tool → result</text>
+                <path d="M430 328 L90 328 L90 180 L98 180" class="al" marker-end="url(#ah)" /><text class="nm" x="82"
+                    y="260" transform="rotate(-90,82,260)" text-anchor="middle" style="fill:#3B8BD4">feed tool_result
+                    back</text>
+                <line x1="340" y1="352" x2="340" y2="390" class="am" marker-end="url(#ah)" />
+                <rect x="180" y="392" width="120" height="48" rx="8" fill="#E1F5EE" stroke="#5DCAA5"
+                    stroke-width="0.5" /><text class="nt" x="240" y="412" text-anchor="middle">Ink renderer</text><text
+                    class="ns" x="240" y="428" text-anchor="middle">React terminal UI</text><text class="nm" x="340"
+                    y="386" text-anchor="middle">PHASE 5</text>
+                <rect x="320" y="392" width="100" height="48" rx="8" fill="#E1F5EE" stroke="#5DCAA5"
+                    stroke-width="0.5" /><text class="nt" x="370" y="412" text-anchor="middle">Cost</text><text
+                    class="ns" x="370" y="428" text-anchor="middle">Token billing</text>
+                <rect x="440" y="392" width="120" height="48" rx="8" fill="#E1F5EE" stroke="#5DCAA5"
+                    stroke-width="0.5" /><text class="nt" x="500" y="412" text-anchor="middle">Memory</text><text
+                    class="ns" x="500" y="428" text-anchor="middle">autoDream</text>
+                <path d="M590 328 L620 328 L620 472 L400 472" class="as" marker-end="url(#ah)" />
+                <rect x="240" y="456" width="160" height="40" rx="8" fill="#FBEAF0" stroke="#ED93B1"
+                    stroke-width="0.5" /><text class="nt" x="320" y="476" text-anchor="middle"
+                    style="fill:#993556">AgentTool recursion</text><text class="nm" x="320" y="506" text-anchor="middle"
+                    style="fill:#D4537E">Phase 4 spawns recursively</text>
+            </svg>
+        </div>
+        <p>Let's break it down phase by phase.</p>
+
+        <hr class="sep" />
+        <h2 id="phase1">Phase 1 — Bootstrap</h2>
+        <div class="phase-card" data-phase="PHASE 1 · BOOTSTRAP" data-color="blue">
+            <h3>Entry point: main.tsx</h3>
+            <p>Everything starts in <code>main.tsx</code>. This file is the CLI entry point — Commander.js parses the
+                arguments, then initializes the React + Ink terminal renderer.</p>
+            <p>But Claude Code makes a critical startup performance decision: <strong>before any heavy module loads, it
+                    fires off four side-effects in parallel</strong>.</p>
+            <pre><code>// main.tsx — fired as side-effects before other imports
+startMdmRawRead()
+startKeychainPrefetch()</code></pre>
+            <div class="parallel-grid">
+                <div class="parallel-item">
+                    <div class="label">MDM Settings</div>
+                    <div class="desc">Reads Mobile Device Management config for enterprise policy enforcement</div>
+                </div>
+                <div class="parallel-item">
+                    <div class="label">Keychain Prefetch</div>
+                    <div class="desc">Pre-fetches auth credentials from macOS Keychain to avoid blocking later</div>
+                </div>
+                <div class="parallel-item">
+                    <div class="label">API Preconnect</div>
+                    <div class="desc">Establishes TCP/TLS connection to Anthropic API ahead of time</div>
+                </div>
+                <div class="parallel-item">
+                    <div class="label">GrowthBook Init</div>
+                    <div class="desc">Initializes the feature-flag system to determine which capabilities are enabled
+                    </div>
+                </div>
+            </div>
+            <div class="insight"><strong>Design decision</strong>: Startup time = max(slowest of four parallel tasks),
+                not their sum. This is why Claude Code's cold start feels faster than you'd expect — by the time you
+                type your first character, auth and connection setup are already done.</div>
+            <p>Meanwhile, heavy modules are lazily loaded. OpenTelemetry (~400KB) and gRPC (~700KB) are deferred via
+                dynamic <code>import()</code> until actually needed.</p>
+        </div>
+
+        <hr class="sep" />
+        <h2 id="phase2">Phase 2 — Context Assembly</h2>
+        <div class="phase-card" data-phase="PHASE 2 · CONTEXT" data-color="purple">
+            <h3>The system prompt is not a string</h3>
+            <p>Most AI apps have a hardcoded system prompt. Claude Code has a <strong>prompt assembly machine</strong>.
+            </p>
+            <p><code>context.ts</code> composes the final system prompt at runtime from multiple sources. The core
+                architecture is a segmented caching system: a <code>SYSTEM_PROMPT_DYNAMIC_BOUNDARY</code> marker splits
+                the prompt into two halves —</p>
+            <ul class="flow-list">
+                <li data-step="S"><strong>Static sections</strong>: Cacheable across organizations. Base behavioral
+                    rules, tool usage specs. These leverage Anthropic API's prompt caching to avoid redundant
+                    computation.</li>
+                <li data-step="D"><strong>Dynamic sections</strong>: Per-session content — current project context,
+                    user's permission mode, connected MCP servers, persistent memories.</li>
+            </ul>
+            <p>There's a function called <code>DANGEROUS_uncachedSystemPromptSection()</code>. The "DANGEROUS" in the
+                name isn't a joke — it marks volatile sections you explicitly want to break cache. The naming is
+                defensive programming: if you misuse it, the function name makes you think twice.</p>
+            <div class="insight"><strong>Design decision</strong>: The cache boundary in the system prompt is a direct
+                expression of token economics. Static sections are computed once and cached; dynamic sections recompute
+                every turn. Wrong zone = wasted tokens or stale information.</div>
+        </div>
+
+        <hr class="sep" />
+        <h2 id="phase3">Phase 3 — Input Routing</h2>
+        <div class="phase-card" data-phase="PHASE 3 · ROUTING" data-color="gray">
+            <h3>Two paths</h3>
+            <p><strong>Path A: Slash commands.</strong> Input starting with <code>/</code> hits the
+                <code>commands.ts</code> registry. About 50 commands — <code>/commit</code>, <code>/review</code>,
+                <code>/compact</code>, <code>/doctor</code>. These execute locally without touching the LLM.</p>
+            <p><strong>Path B: Natural language.</strong> Everything else goes to <code>QueryEngine</code> — a single
+                46,000-line file handling streaming responses, the tool-call loop, thinking mode, retry logic, and token
+                counting.</p>
+            <p>Path B is where Claude Code becomes an agent. Let's enter the core loop.</p>
+        </div>
+
+        <hr class="sep" />
+        <h2 id="phase4">Phase 4 — Tool-Call Loop</h2>
+        <p>This is the single most important mechanism in Claude Code. If you remember only one diagram, remember this
+            one:</p>
+
+        <div class="diagram-wrap">
+            <svg width="100%" viewBox="0 0 680 600" xmlns="http://www.w3.org/2000/svg">
+                <style>
+                    .lt {
+                        font-family: 'IBM Plex Sans', sans-serif;
+                        font-size: 13px;
+                        font-weight: 500
+                    }
+
+                    .ls {
+                        font-family: 'IBM Plex Sans', sans-serif;
+                        font-size: 11px
+                    }
+
+                    .lm {
+                        font-family: 'JetBrains Mono', monospace;
+                        font-size: 10px
+                    }
+
+                    .lt,
+                    .ls {
+                        fill: #1A1A18
+                    }
+
+                    .lm {
+                        fill: #8A8A85
+                    }
+
+                    .lk {
+                        stroke: #B4B2A9;
+                        stroke-width: 1.2;
+                        fill: none
+                    }
+
+                    @media(prefers-color-scheme:dark) {
+
+                        .lt,
+                        .ls {
+                            fill: #E8E6DE
+                        }
+
+                        .lm {
+                            fill: #73726C
+                        }
+
+                        .lk {
+                            stroke: #5F5E5A
+                        }
+                    }
+                </style>
+                <defs>
+                    <marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6"
+                        orient="auto-start-reverse">
+                        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </marker>
+                </defs>
+                <rect x="200" y="20" width="280" height="44" rx="8" fill="#EEEDFE" stroke="#AFA9EC"
+                    stroke-width="0.5" /><text class="lt" x="340" y="47" text-anchor="middle">User message + system
+                    prompt</text>
+                <line x1="340" y1="64" x2="340" y2="96" class="lk" marker-end="url(#ah2)" />
+                <rect x="200" y="98" width="280" height="44" rx="8" fill="#E6F1FB" stroke="#85B7EB"
+                    stroke-width="0.5" /><text class="lt" x="340" y="118" text-anchor="middle">Anthropic API
+                    (streaming)</text><text class="ls" x="340" y="133" text-anchor="middle"
+                    style="fill:#5C5C58">QueryEngine → messages endpoint</text>
+                <line x1="340" y1="142" x2="340" y2="174" class="lk" marker-end="url(#ah2)" />
+                <rect x="220" y="176" width="240" height="44" rx="8" fill="#F1EFE8" stroke="#B4B2A9"
+                    stroke-width="0.5" /><text class="lt" x="340" y="196" text-anchor="middle">Parse streamed
+                    response</text><text class="ls" x="340" y="211" text-anchor="middle"
+                    style="fill:#5C5C58">content_block type check</text>
+                <line x1="260" y1="220" x2="140" y2="270" class="lk" marker-end="url(#ah2)" /><text class="lm" x="178"
+                    y="242" style="fill:#1D9E75">type: text</text>
+                <rect x="60" y="272" width="160" height="40" rx="8" fill="#E1F5EE" stroke="#5DCAA5"
+                    stroke-width="0.5" /><text class="ls" x="140" y="296" text-anchor="middle"
+                    style="fill:#0F6E56">Stream to terminal (done)</text>
+                <line x1="420" y1="220" x2="500" y2="270" class="lk" marker-end="url(#ah2)" /><text class="lm" x="476"
+                    y="242" style="fill:#BA7517">type: tool_use</text>
+                <rect x="420" y="272" width="200" height="50" rx="8" fill="#FAEEDA" stroke="#FAC775"
+                    stroke-width="0.5" /><text class="lt" x="520" y="292" text-anchor="middle">Permission
+                    check</text><text class="ls" x="520" y="310" text-anchor="middle" style="fill:#854F0B">mode:
+                    default|auto|plan</text>
+                <line x1="440" y1="322" x2="380" y2="362" class="lk" marker-end="url(#ah2)" /><text class="lm" x="388"
+                    y="342" style="fill:#E24B4A">denied</text>
+                <rect x="280" y="364" width="140" height="36" rx="6" fill="#FCEBEB" stroke="#F09595"
+                    stroke-width="0.5" /><text class="ls" x="350" y="386" text-anchor="middle"
+                    style="fill:#A32D2D">Error as tool_result</text>
+                <line x1="560" y1="322" x2="560" y2="362" class="lk" marker-end="url(#ah2)" /><text class="lm" x="584"
+                    y="342" style="fill:#639922">approved</text>
+                <rect x="460" y="364" width="200" height="50" rx="8" fill="#EAF3DE" stroke="#97C459"
+                    stroke-width="0.5" /><text class="lt" x="560" y="384" text-anchor="middle">Execute tool</text><text
+                    class="ls" x="560" y="400" text-anchor="middle" style="fill:#3B6D11">Bash / FileEdit / Grep
+                    ...</text>
+                <line x1="350" y1="400" x2="350" y2="444" class="lk" marker-end="url(#ah2)" />
+                <line x1="560" y1="414" x2="560" y2="434" class="lk" />
+                <line x1="560" y1="434" x2="460" y2="434" class="lk" />
+                <line x1="460" y1="434" x2="460" y2="444" class="lk" marker-end="url(#ah2)" />
+                <rect x="260" y="446" width="280" height="44" rx="8" fill="#E6F1FB" stroke="#85B7EB"
+                    stroke-width="0.5" /><text class="lt" x="400" y="466" text-anchor="middle">Append tool_result to
+                    messages</text><text class="ls" x="400" y="481" text-anchor="middle" style="fill:#5C5C58">Feed back
+                    as next turn input</text>
+                <path d="M260 468 L50 468 L50 120 L198 120" stroke="#3B8BD4" stroke-width="1.5" fill="none"
+                    stroke-dasharray="5 4" marker-end="url(#ah2)" /><text class="lm" x="38" y="300"
+                    transform="rotate(-90,38,300)" text-anchor="middle" style="fill:#3B8BD4">Loop until text-only
+                    response</text>
+                <rect x="220" y="530" width="240" height="36" rx="6" fill="#F1EFE8" stroke="#B4B2A9"
+                    stroke-width="0.5" /><text class="ls" x="340" y="553" text-anchor="middle"
+                    style="fill:#5C5C58">Exit: response has no tool_use blocks</text>
+                <line x1="140" y1="312" x2="240" y2="530" class="lk" stroke-dasharray="3 3" marker-end="url(#ah2)"
+                    style="stroke:#B4B2A9;stroke-width:0.8" />
+            </svg>
+        </div>
+
+        <div class="phase-card" data-phase="PHASE 4 · TOOL-CALL LOOP" data-color="amber">
+            <h3>The loop</h3>
+            <p>The tool-call loop is essentially a <strong>while(true)</strong>. Each iteration:</p>
+            <ul class="flow-list">
+                <li data-step="1">Send current conversation history (system prompt, user message, prior tool calls and
+                    results) to the Anthropic API</li>
+                <li data-step="2">Stream the model's response, parsing each content_block</li>
+                <li data-step="3">If block type is <code>text</code>, stream directly to terminal</li>
+                <li data-step="4">If block type is <code>tool_use</code>, run permission check → execute → capture
+                    result</li>
+                <li data-step="5">Append tool_result to messages array; go to step 1</li>
+            </ul>
+            <p>Exit condition: when the response contains only <code>text</code> blocks with no tool_use requests.</p>
+            <h3>The permission system</h3>
+            <p>Every tool_use is intercepted by <code>toolPermission</code> hooks before execution:</p>
+            <table class="tool-table">
+                <thead>
+                    <tr>
+                        <th>Mode</th>
+                        <th>Behavior</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>default</td>
+                        <td>Interactive prompts — user approves or denies each tool call</td>
+                    </tr>
+                    <tr>
+                        <td>auto</td>
+                        <td>ML-classifier-based auto-approval; low-risk operations pass automatically</td>
+                    </tr>
+                    <tr>
+                        <td>plan</td>
+                        <td>Model plans first, user approves the whole plan</td>
+                    </tr>
+                    <tr>
+                        <td>bypass</td>
+                        <td>Skip all checks (trusted environments only)</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>Every action is classified LOW / MEDIUM / HIGH risk. Sensitive files like <code>.gitconfig</code> and
+                <code>.bashrc</code> are guarded. Path-traversal prevention covers URL-encoded traversals, Unicode
+                normalization attacks, and backslash injection.</p>
+            <div class="insight"><strong>Design decision</strong>: Security is the line between a toy and a product.
+                There's even a "permission explainer" — a separate LLM call generates a human-readable risk description
+                before the user approves.</div>
+            <h3>The tool registry</h3>
+            <table class="tool-table">
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>BashTool</td>
+                        <td>Shell execution (optional sandboxing)</td>
+                    </tr>
+                    <tr>
+                        <td>FileReadTool</td>
+                        <td>Read files (images, PDFs, notebooks)</td>
+                    </tr>
+                    <tr>
+                        <td>FileEditTool</td>
+                        <td>Partial file modification (string replacement)</td>
+                    </tr>
+                    <tr>
+                        <td>GrepTool</td>
+                        <td>Content search via ripgrep</td>
+                    </tr>
+                    <tr>
+                        <td>AgentTool</td>
+                        <td>Spawn sub-agent (recursive loop)</td>
+                    </tr>
+                    <tr>
+                        <td>MCPTool</td>
+                        <td>MCP server tool invocation</td>
+                    </tr>
+                    <tr>
+                        <td>LSPTool</td>
+                        <td>Language Server Protocol integration</td>
+                    </tr>
+                    <tr>
+                        <td>WebFetchTool</td>
+                        <td>Fetch web page content</td>
+                    </tr>
+                    <tr>
+                        <td>WebSearchTool</td>
+                        <td>Web search</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr class="sep" />
+        <h2 id="phase5">Phase 5 — Output</h2>
+        <div class="phase-card" data-phase="PHASE 5 · OUTPUT" data-color="teal">
+            <h3>Three things at once</h3>
+            <p><strong>Terminal rendering.</strong> React + Ink for terminal UI — ~140 components, likely one of the
+                largest public Ink applications.</p>
+            <p><strong>Cost tracking.</strong> <code>cost-tracker.ts</code> records token consumption in real time.
+                Input tokens, output tokens, cache hit ratios. Check via <code>/cost</code>.</p>
+            <p><strong>Memory consolidation (autoDream).</strong> A background "Dream" system with a three-gate trigger:
+                24-hour gap, 5+ sessions since last dream, concurrency lock acquired. All three must pass. A forked
+                sub-agent then runs four phases: orient → gather signal → consolidate → prune. It gets read-only bash —
+                observation only, no modification.</p>
+        </div>
+
+        <hr class="sep" />
+        <h2 id="agents">Recursion: Sub-Agents and Multi-Agent Swarms</h2>
+        <div class="phase-card" data-phase="EXTENSION · MULTI-AGENT" data-color="pink">
+            <p>When the model calls <code>AgentTool</code> during Phase 4, the entire pipeline gets recursively spawned
+                — own conversation, own tool-call loop, own permission checks.</p>
+            <p>In advanced mode, <code>coordinator/</code> transforms a single agent into an orchestrator managing
+                parallel workers. Four stages: parallel investigation → synthesis and spec writing → implementation per
+                spec → verification.</p>
+            <p>Workers communicate via XML <code>&lt;task-notification&gt;</code> messages with a shared scratchpad for
+                durable knowledge.</p>
+            <div class="insight"><strong>Design decision</strong>: The core constraint is "no lazy delegation." The
+                coordinator prompt bans "based on your findings" — you must read worker output and specify exactly what
+                to do next. Direct defense against the most common multi-agent failure mode.</div>
+        </div>
+
+        <hr class="sep" />
+        <h2 id="takeaways">Design Decisions and Takeaways</h2>
+        <p><strong>Parallelism-first.</strong> Four-way prefetch at startup. Parallel rendering/billing/memory at
+            output. Parallel worker agents. Concurrency at every level.</p>
+        <p><strong>Caching as first-class citizen.</strong> Static/dynamic prompt split, tool schema cache, aggressive
+            feature-flag caching. Tokens are money; every saveable token is saved.</p>
+        <p><strong>Security isn't bolted on.</strong> The permission system is an interceptor chain inside the loop, not
+            a checkpoint outside it. Every tool invocation passes through. No exceptions.</p>
+        <p><strong>Recursion as extension.</strong> AgentTool makes the system fractal. Capabilities scale through
+            recursion, not new modules.</p>
+
+        <div class="next-teaser">
+            <div class="label">Next</div>
+            <div class="title">Claude Code Illustrated #2 — QueryEngine: The Brain of the Agent</div>
+            <div class="desc">A deep dive into the 46,000-line core engine. How does streaming work? What's the shape of
+                the tool-call state machine? How is thinking mode implemented? How does retry logic prevent cascade
+                failures?</div>
+        </div>
+    </article>
+</body>
+
+</html>

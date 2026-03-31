@@ -1,0 +1,656 @@
+
+<style>
+  :root {
+    --step: 0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-mono, monospace); }
+
+  #oc-root {
+    padding: 0;
+    user-select: none;
+  }
+
+  /* ── Header bar ── */
+  #oc-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  #oc-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    letter-spacing: 0.04em;
+  }
+  #oc-chapter {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    margin-left: auto;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Step pills ── */
+  #oc-pills {
+    display: flex;
+    gap: 4px;
+    padding: 12px 20px;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-secondary);
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .pill {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    padding: 4px 10px;
+    border-radius: 99px;
+    border: 0.5px solid var(--color-border-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--color-text-secondary);
+    background: var(--color-background-primary);
+    transition: all 0.15s;
+  }
+  .pill.active {
+    color: var(--color-text-info);
+    background: var(--color-background-info);
+    border-color: transparent;
+  }
+  .pill:hover:not(.active) {
+    border-color: var(--color-border-primary);
+    color: var(--color-text-primary);
+  }
+
+  /* ── Main layout ── */
+  #oc-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 480px;
+  }
+  @media (max-width: 600px) {
+    #oc-body { grid-template-columns: 1fr; }
+  }
+
+  /* ── Diagram pane ── */
+  #oc-diagram {
+    padding: 24px 20px;
+    border-right: 0.5px solid var(--color-border-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #oc-diagram svg {
+    width: 100%;
+    max-width: 340px;
+  }
+
+  /* ── Explanation pane ── */
+  #oc-explain {
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  #oc-step-num {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--color-text-tertiary);
+  }
+  #oc-step-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    line-height: 1.3;
+  }
+  #oc-step-body {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--color-text-secondary);
+    font-family: var(--font-sans);
+  }
+  #oc-step-body code {
+    font-family: var(--font-mono, monospace);
+    font-size: 12px;
+    background: var(--color-background-secondary);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--color-text-primary);
+  }
+  #oc-insight {
+    background: var(--color-background-secondary);
+    border-left: 2px solid var(--color-border-info);
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+    font-family: var(--font-sans);
+  }
+  #oc-insight strong {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--color-text-info);
+    margin-bottom: 4px;
+  }
+
+  /* ── Code snippet ── */
+  #oc-code {
+    background: var(--color-background-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 11.5px;
+    font-family: var(--font-mono, monospace);
+    line-height: 1.7;
+    color: var(--color-text-secondary);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .kw { color: var(--color-text-info); font-weight: 500; }
+  .fn { color: var(--color-text-success); }
+  .cm { color: var(--color-text-tertiary); }
+  .str { color: var(--color-text-warning); }
+  .hi { background: var(--color-background-warning); border-radius: 2px; padding: 0 2px; }
+
+  /* ── Nav ── */
+  #oc-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-top: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+  }
+  .nav-btn {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 16px;
+    border-radius: 6px;
+    border: 0.5px solid var(--color-border-secondary);
+    background: var(--color-background-primary);
+    cursor: pointer;
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono, monospace);
+    letter-spacing: 0.02em;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .nav-btn:hover { background: var(--color-background-secondary); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-btn:active:not(:disabled) { transform: scale(0.98); }
+  #oc-progress {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    font-family: var(--font-mono);
+    letter-spacing: 0.06em;
+  }
+</style>
+
+<div id="oc-root">
+  <div id="oc-header">
+    <div id="oc-title">ILLUSTRATED OPENCLAW</div>
+    <div id="oc-chapter">the agentic loop</div>
+  </div>
+
+  <div id="oc-pills"></div>
+
+  <div id="oc-body">
+    <div id="oc-diagram"></div>
+    <div id="oc-explain">
+      <div id="oc-step-num"></div>
+      <div id="oc-step-title"></div>
+      <div id="oc-step-body"></div>
+      <div id="oc-insight" style="display:none"></div>
+      <div id="oc-code" style="display:none"></div>
+    </div>
+  </div>
+
+  <div id="oc-nav">
+    <button class="nav-btn" id="btn-prev">← prev</button>
+    <div id="oc-progress"></div>
+    <button class="nav-btn" id="btn-next">next →</button>
+  </div>
+</div>
+
+<script>
+const STEPS = [
+  {
+    title: "The agentic loop",
+    body: `Everything in OpenClaw is a <code>while</code> loop. The agent keeps calling the model until it gets a <code>stop_reason</code> of <code>end_turn</code> — meaning the model is done and made no more tool calls.\n\nThis loop is the heartbeat of the entire system. It's what separates a chatbot (one shot, done) from an agent (keeps going until the task is finished).`,
+    insight: { label: "WHY IT MATTERS", text: "Without this loop, the model would stop after one tool call. With it, the agent can chain 20+ actions autonomously — read a file, write code, run it, check the output, fix the bug." },
+    code: `<span class="kw">while</span> iterations < 25:
+    iterations += 1
+    <span class="cm"># stream text live, get final msg</span>
+    final = stream.<span class="fn">get_final_message</span>()
+
+    <span class="kw">if</span> final.stop_reason == <span class="str">"end_turn"</span>:
+        <span class="kw">break</span>  <span class="cm"># model is done</span>
+
+    <span class="cm"># otherwise: run tools, loop again</span>`,
+    diagram: drawLoop
+  },
+  {
+    title: "Streaming vs final message",
+    body: `OpenClaw does two things in one pass: it <em>streams</em> text live to the terminal as tokens arrive, but waits for the complete message before parsing any <code>tool_use</code> blocks.\n\nWhy? Because tool call arguments might be incomplete mid-stream — you need the full JSON before you can dispatch.`,
+    insight: { label: "THE DESIGN CHOICE", text: "Text streams live so the user sees progress immediately. Tool calls parse from the final message so arguments are always complete. Best of both worlds." },
+    code: `<span class="kw">with</span> client.messages.<span class="fn">stream</span>(...) <span class="kw">as</span> stream:
+    <span class="kw">for</span> text <span class="kw">in</span> stream.text_stream:
+        <span class="fn">print</span>(text, end=<span class="str">""</span>, flush=<span class="kw">True</span>)
+        <span class="cm"># ^ live output while streaming</span>
+
+    final = stream.<span class="fn">get_final_message</span>()
+    <span class="cm"># ^ parse tool_use blocks from here</span>`,
+    diagram: drawStream
+  },
+  {
+    title: "Tool registry",
+    body: `The tool registry is a <code>dict</code> mapping tool names to handler functions. When the model calls a tool, OpenClaw looks it up by name and executes it.\n\nThis pattern keeps dispatch simple and extensible — adding a new tool is just adding one key to the dict and one handler function.`,
+    insight: { label: "EXTENSIBILITY", text: "This is the 'claw' in OpenClaw — the registry is what the model grabs onto. The model declares what tools exist; the registry decides what actually runs." },
+    code: `HANDLERS = {
+    <span class="str">"bash"</span>:       <span class="fn">handle_bash</span>,
+    <span class="str">"read_file"</span>:  <span class="fn">handle_read</span>,
+    <span class="str">"write_file"</span>: <span class="fn">handle_write</span>,
+    <span class="str">"str_replace"</span>:<span class="fn">handle_edit</span>,
+}
+
+<span class="cm"># dispatch</span>
+handler = HANDLERS.<span class="fn">get</span>(name)
+result = <span class="fn">handler</span>(inp)`,
+    diagram: drawRegistry
+  },
+  {
+    title: "The confirmation gate",
+    body: `Not all tool calls run automatically. <code>NEEDS_CONFIRM</code> is a set of tool names that require the user to type <code>y</code>, <code>n</code>, or <code>a</code> (always) before executing.\n\n<code>always</code> adds the tool to <code>auto_allow</code> — a per-session set that skips future confirmations for that tool. This is the trust escalation mechanism.`,
+    insight: { label: "SECURITY MODEL", text: "Dangerous tools (bash, write_file) always ask. Safe tools (read_file) run silently. The user escalates trust explicitly — the agent never assumes it." },
+    code: `NEEDS_CONFIRM = {<span class="str">"bash"</span>, <span class="str">"write_file"</span>, <span class="str">"str_replace"</span>}
+
+<span class="kw">def</span> <span class="fn">confirm</span>(name, inp):
+    <span class="kw">if</span> name <span class="kw">not in</span> NEEDS_CONFIRM: <span class="kw">return True</span>
+    <span class="kw">if</span> name <span class="kw">in</span> self.auto_allow: <span class="kw">return True</span>
+    choice = console.<span class="fn">input</span>(<span class="str">"y/n/a: "</span>)
+    <span class="kw">if</span> choice == <span class="str">"a"</span>:
+        self.auto_allow.<span class="fn">add</span>(name)
+    <span class="kw">return</span> choice <span class="kw">in</span> (<span class="str">"y"</span>,<span class="str">"a"</span>)`,
+    diagram: drawGate
+  },
+  {
+    title: "History as state",
+    body: `The agent has no memory between API calls. Every turn, the full conversation — every user message, assistant response, tool call, and tool result — gets serialized into the <code>messages</code> array and sent back to the model.\n\nThe history array <em>is</em> the agent's working memory. Lose it and the agent forgets everything.`,
+    insight: { label: "STATELESS BY DESIGN", text: "The Anthropic API is stateless — each call is independent. The agent fakes continuity by replaying the full transcript every time. Expensive but unavoidable." },
+    code: `<span class="cm"># After each tool call, append to history:</span>
+self.history.<span class="fn">append</span>({
+    <span class="str">"role"</span>: <span class="str">"tool"</span>,
+    <span class="str">"tool_use_id"</span>: block.id,
+    <span class="str">"content"</span>: result
+})
+
+<span class="cm"># Next API call includes everything:</span>
+client.messages.<span class="fn">stream</span>(
+    messages=self.history  <span class="cm"># full replay</span>
+)`,
+    diagram: drawHistory
+  },
+  {
+    title: "Compact: surviving long sessions",
+    body: `The longer the session, the more tokens the history consumes — and eventually hits the context window limit. <code>/compact</code> solves this by asking the model to summarize the conversation, then replacing the full history with just the summary.\n\nIt's lossy compression for working memory — you lose details but keep the arc.`,
+    insight: { label: "THE TRADE-OFF", text: "Compact sacrifices precision for longevity. Filenames, decisions, and current state survive. Exact code, earlier drafts, and subtle context don't. Use it late, not early." },
+    code: `<span class="kw">def</span> <span class="fn">_compact</span>(self):
+    resp = client.messages.<span class="fn">create</span>(
+        messages=self.history + [{
+            <span class="str">"role"</span>: <span class="str">"user"</span>,
+            <span class="str">"content"</span>: <span class="str">"Summarize in bullets"</span>
+        }]
+    )
+    summary = resp.content[0].text
+    self.history.<span class="fn">clear</span>()
+    self.history.<span class="fn">append</span>({
+        <span class="str">"role"</span>: <span class="str">"user"</span>,
+        <span class="str">"content"</span>: <span class="str">f"[Summary]\\n{summary}"</span>
+    })`,
+    diagram: drawCompact
+  }
+];
+
+// ── Diagram renderers ──────────────────────────────────────────
+
+function svgWrap(h, content) {
+  return `<svg viewBox="0 0 320 ${h}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  ${content}
+</svg>`;
+}
+
+const T = "var(--color-text-primary)";
+const TS = "var(--color-text-secondary)";
+const TI = "var(--color-text-info)";
+const TW = "var(--color-text-warning)";
+const TS2 = "var(--color-text-success)";
+const BGS = "var(--color-background-secondary)";
+const BGI = "var(--color-background-info)";
+const BGW = "var(--color-background-warning)";
+const BG = "var(--color-background-primary)";
+const BORDER = "var(--color-border-secondary)";
+const BORDI = "var(--color-border-info)";
+
+function box(x,y,w,h,rx,fill,stroke,sw=0.5) {
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+}
+function label(x,y,txt,cls,anchor="middle",fill=T,size=13) {
+  return `<text x="${x}" y="${y}" text-anchor="${anchor}" dominant-baseline="central" font-size="${size}" fill="${fill}" font-weight="${cls==='th'?'500':'400'}" font-family="var(--font-mono, monospace)">${txt}</text>`;
+}
+function arrow(x1,y1,x2,y2,col="var(--color-border-secondary)") {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="1.2" marker-end="url(#arr)"/>`;
+}
+
+function drawLoop() {
+  return svgWrap(400, `
+    <!-- User message box -->
+    ${box(60,20,200,42,8,BGI,BORDI)}
+    ${label(160,41,"user message","th","middle",TI,12)}
+
+    ${arrow(160,62,160,94,"var(--color-border-info)")}
+
+    <!-- Model call -->
+    ${box(60,95,200,42,8,BGS,BORDER)}
+    ${label(160,116,"claude API call","th","middle",T,12)}
+
+    ${arrow(160,137,160,169,"var(--color-border-secondary)")}
+
+    <!-- Decision diamond -->
+    <polygon points="160,170 220,200 160,230 100,200" fill="${BGS}" stroke="${BORDER}" stroke-width="0.5"/>
+    ${label(160,200,"end_turn?","th","middle",TS,11)}
+
+    <!-- Yes path → done -->
+    ${arrow(220,200,270,200,"var(--color-border-success)")}
+    ${box(272,182,44,36,8,"var(--color-background-success)","var(--color-border-success)")}
+    ${label(294,200,"done","th","middle","var(--color-text-success)",11)}
+
+    <!-- No path → tools -->
+    ${arrow(160,230,160,262,"var(--color-border-secondary)")}
+    ${box(60,263,200,42,8,BGS,BORDER)}
+    ${label(160,284,"run tool calls","th","middle",T,12)}
+
+    <!-- Loop back arrow -->
+    ${arrow(60,284,30,284,"var(--color-border-tertiary)")}
+    <line x1="30" y1="284" x2="30" y2="116" stroke="var(--color-border-tertiary)" stroke-width="1.2" stroke-dasharray="3 3"/>
+    ${arrow(30,116,60,116,"var(--color-border-tertiary)")}
+
+    <!-- iteration counter label -->
+    ${label(30,200,"loop","","middle","var(--color-text-tertiary)",10)}
+
+    <!-- append to history -->
+    ${arrow(160,305,160,337,"var(--color-border-secondary)")}
+    ${box(60,338,200,42,8,BGS,BORDER)}
+    ${label(160,359,"append to history","th","middle",T,12)}
+
+    <!-- back to top -->
+    <line x1="260" y1="359" x2="288" y2="359" stroke="var(--color-border-tertiary)" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <line x1="288" y1="359" x2="288" y2="41" stroke="var(--color-border-tertiary)" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <line x1="288" y1="41" x2="260" y2="41" stroke="var(--color-border-tertiary)" stroke-width="1.2" stroke-dasharray="3 3"/>
+    ${label(290,200,"↻","","start","var(--color-text-tertiary)",10)}
+  `);
+}
+
+function drawStream() {
+  return svgWrap(340, `
+    <!-- API stream box -->
+    ${box(40,20,240,260,12,BGS,BORDER)}
+    ${label(160,46,"anthropic API stream","th","middle",TS,12)}
+
+    <!-- Text stream -->
+    ${box(60,65,200,70,8,BGI,BORDI)}
+    ${label(160,96,"text_stream","th","middle",TI,12)}
+    ${label(160,110,"tokens arrive live","","middle",TI,10)}
+
+    <!-- live print -->
+    ${arrow(260,100,295,100,TI)}
+    ${box(297,82,20,36,4,BGI,BORDI,0.5)}
+    ${label(307,100,"⬝","","middle",TI,10)}
+
+    <!-- Final message -->
+    ${box(60,160,200,80,8,"var(--color-background-warning)","var(--color-border-warning)")}
+    ${label(160,192,"get_final_message()","th","middle",TW,11)}
+    ${label(160,212,"complete JSON","","middle",TW,10)}
+    ${label(160,226,"parse tool_use here","","middle",TW,10)}
+
+    <!-- separator -->
+    <line x1="60" y1="145" x2="260" y2="145" stroke="${BORDER}" stroke-width="0.5" stroke-dasharray="4 4"/>
+
+    <!-- arrow down to tool dispatch -->
+    ${arrow(160,240,160,282,"var(--color-border-warning)")}
+    ${box(60,283,200,42,8,BGS,BORDER)}
+    ${label(160,304,"dispatch tool calls","th","middle",T,12)}
+  `);
+}
+
+function drawRegistry() {
+  return svgWrap(380, `
+    <!-- Model output -->
+    ${box(60,20,200,42,8,BGI,BORDI)}
+    ${label(160,36,"tool_use block","th","middle",TI,12)}
+    ${label(160,52,"name: 'bash'","","middle",TI,10)}
+
+    ${arrow(160,62,160,94)}
+
+    <!-- Registry lookup -->
+    ${box(60,95,200,80,8,BGS,BORDER)}
+    ${label(160,120,"HANDLERS.get(name)","th","middle",T,12)}
+
+    <!-- Registry entries -->
+    <line x1="80" y1="138" x2="240" y2="138" stroke="${BORDER}" stroke-width="0.5"/>
+    ${label(100,153,"bash","","start",TS,11)}
+    ${label(220,153,"→ handle_bash","","end",TS2,11)}
+
+    ${arrow(160,175,160,207)}
+
+    <!-- Handler runs -->
+    ${box(60,208,200,42,8,"var(--color-background-success)","var(--color-border-success)")}
+    ${label(160,229,"handler(inp)","th","middle",TS2,12)}
+
+    ${arrow(160,250,160,282)}
+
+    <!-- Result -->
+    ${box(60,283,200,42,8,BGS,BORDER)}
+    ${label(160,304,"result string","th","middle",T,12)}
+
+    <!-- Unknown tool path -->
+    ${arrow(260,135,295,135,BORDER)}
+    ${label(297,135,"?","","start",TS,11)}
+    ${box(295,118,22,34,4,BGS,BORDER)}
+    ${label(306,135,"err","","middle","var(--color-text-danger)",10)}
+  `);
+}
+
+function drawGate() {
+  return svgWrap(420, `
+    <!-- Tool call arrives -->
+    ${box(60,20,200,42,8,BGI,BORDI)}
+    ${label(160,41,"tool call: bash","th","middle",TI,12)}
+
+    ${arrow(160,62,160,94)}
+
+    <!-- In NEEDS_CONFIRM? -->
+    <polygon points="160,95 230,125 160,155 90,125" fill="${BGS}" stroke="${BORDER}" stroke-width="0.5"/>
+    ${label(160,125,"in NEEDS_CONFIRM?","th","middle",TS,10)}
+
+    <!-- No path → run direct -->
+    ${arrow(90,125,55,125)}
+    ${box(10,107,42,36,6,"var(--color-background-success)","var(--color-border-success)")}
+    ${label(31,125,"run","th","middle",TS2,11)}
+    ${label(72,115,"no","","middle",TS,10)}
+
+    <!-- Yes path down -->
+    ${arrow(160,155,160,187)}
+    ${label(170,172,"yes","","start",TS,10)}
+
+    <!-- In auto_allow? -->
+    <polygon points="160,188 230,218 160,248 90,218" fill="${BGS}" stroke="${BORDER}" stroke-width="0.5"/>
+    ${label(160,218,"in auto_allow?","th","middle",TS,10)}
+
+    <!-- auto yes → run -->
+    ${arrow(90,218,55,218)}
+    ${box(10,200,42,36,6,"var(--color-background-success)","var(--color-border-success)")}
+    ${label(31,218,"run","th","middle",TS2,11)}
+    ${label(72,208,"yes","","middle",TS,10)}
+
+    <!-- No → ask user -->
+    ${arrow(160,248,160,280)}
+    ${label(170,265,"no","","start",TS,10)}
+
+    ${box(60,281,200,42,8,BGW,"var(--color-border-warning)")}
+    ${label(160,302,"y / n / always?","th","middle",TW,12)}
+
+    <!-- always branch -->
+    ${arrow(260,302,295,302,"var(--color-border-warning)")}
+    ${box(297,284,20,36,4,BGW,"var(--color-border-warning)")}
+    ${label(307,302,"a","th","middle",TW,11)}
+    <line x1="307" y1="320" x2="307" y2="355" stroke="${BORDER}" stroke-width="1" stroke-dasharray="3 3"/>
+    ${label(295,356,"→ auto_allow","","end",TS,10)}
+
+    <!-- yes → run -->
+    ${arrow(160,323,160,355)}
+    ${box(60,356,200,42,8,"var(--color-background-success)","var(--color-border-success)")}
+    ${label(160,377,"run tool","th","middle",TS2,12)}
+  `);
+}
+
+function drawHistory() {
+  return svgWrap(360, `
+    <!-- History array visual -->
+    ${label(160,24,"self.history  [ ]","th","middle",T,13)}
+
+    <!-- Entries in history -->
+    ${box(50,42,220,34,6,BGI,BORDI)}
+    ${label(160,59,"user: 'build me a server'","","middle",TI,11)}
+
+    ${box(50,80,220,34,6,BGS,BORDER)}
+    ${label(160,97,"assistant: [tool_use: bash]","","middle",T,11)}
+
+    ${box(50,118,220,34,6,"var(--color-background-success)","var(--color-border-success)")}
+    ${label(160,135,"tool result: 'server.py created'","","middle",TS2,10)}
+
+    ${box(50,156,220,34,6,BGS,BORDER)}
+    ${label(160,173,"assistant: 'done, here's...'","","middle",T,11)}
+
+    <!-- arrow to API -->
+    ${arrow(160,196,160,228)}
+    ${label(170,214,"every call","","start",TS,10)}
+
+    ${box(50,229,220,42,8,BGI,BORDI)}
+    ${label(160,250,"anthropic API","th","middle",TI,12)}
+
+    <!-- stateless label -->
+    ${arrow(270,250,295,250)}
+    ${label(297,250,"stateless","","start","var(--color-text-danger)",10)}
+
+    <!-- token count warning -->
+    ${label(160,308,"grows every turn","","middle","var(--color-text-warning)",11)}
+    ${label(160,326,"compact to survive long sessions →","","middle",TS,10)}
+  `);
+}
+
+function drawCompact() {
+  return svgWrap(400, `
+    <!-- Full history -->
+    ${box(50,20,220,120,8,BGS,BORDER)}
+    ${label(160,40,"full history","th","middle",T,12)}
+    ${box(62,56,196,20,4,BGS,BORDER)}
+    ${label(160,66,"msg 1","","middle",TS,10)}
+    ${box(62,80,196,20,4,BGS,BORDER)}
+    ${label(160,90,"msg 2 ... msg 47","","middle",TS,10)}
+    ${box(62,104,196,20,4,BGS,BORDER)}
+    ${label(160,114,"msg 48","","middle",TS,10)}
+
+    <!-- summarize call -->
+    ${arrow(160,140,160,172)}
+    ${box(50,173,220,42,8,BGW,"var(--color-border-warning)")}
+    ${label(160,194,"/compact","th","middle",TW,12)}
+
+    ${arrow(160,215,160,247)}
+
+    <!-- LLM summarizes -->
+    ${box(50,248,220,42,8,BGI,BORDI)}
+    ${label(160,264,"model: summarize session","","middle",TI,11)}
+    ${label(160,279,"→ 3-5 bullet points","","middle",TI,10)}
+
+    ${arrow(160,290,160,322)}
+
+    <!-- Compact history -->
+    ${box(50,323,220,60,8,"var(--color-background-success)","var(--color-border-success)")}
+    ${label(160,343,"compacted history","th","middle",TS2,12)}
+    ${box(62,357,196,20,4,"var(--color-background-success)","var(--color-border-success)")}
+    ${label(160,367,"[summary] msg only","","middle",TS2,10)}
+
+    <!-- token savings -->
+    ${label(290,170,"48 msgs","","start",TS,10)}
+    ${arrow(290,175,290,330,TS)}
+    ${label(290,342,"1 msg","","start",TS2,10)}
+  `);
+}
+
+// ── Render engine ──────────────────────────────────────────────
+
+let cur = 0;
+
+function render(idx) {
+  const step = STEPS[idx];
+  // pills
+  const pillsEl = document.getElementById('oc-pills');
+  pillsEl.innerHTML = STEPS.map((s, i) =>
+    `<div class="pill${i===idx?' active':''}" onclick="goTo(${i})">${String(i+1).padStart(2,'0')} ${s.title.split(' ')[0].toLowerCase()}</div>`
+  ).join('');
+
+  // diagram
+  document.getElementById('oc-diagram').innerHTML = step.diagram();
+
+  // explain
+  document.getElementById('oc-step-num').textContent = `CHAPTER ${String(idx+1).padStart(2,'0')} / ${String(STEPS.length).padStart(2,'0')}`;
+  document.getElementById('oc-step-title').textContent = step.title;
+
+  const bodyEl = document.getElementById('oc-step-body');
+  bodyEl.innerHTML = step.body.replace(/\n/g, '<br><br>');
+
+  const insEl = document.getElementById('oc-insight');
+  if (step.insight) {
+    insEl.style.display = 'block';
+    insEl.innerHTML = `<strong>${step.insight.label}</strong>${step.insight.text}`;
+  } else {
+    insEl.style.display = 'none';
+  }
+
+  const codeEl = document.getElementById('oc-code');
+  if (step.code) {
+    codeEl.style.display = 'block';
+    codeEl.innerHTML = step.code;
+  } else {
+    codeEl.style.display = 'none';
+  }
+
+  document.getElementById('oc-progress').textContent = `${idx+1} / ${STEPS.length}`;
+  document.getElementById('btn-prev').disabled = idx === 0;
+  document.getElementById('btn-next').disabled = idx === STEPS.length - 1;
+  cur = idx;
+}
+
+function goTo(idx) { render(idx); }
+document.getElementById('btn-prev').onclick = () => cur > 0 && render(cur - 1);
+document.getElementById('btn-next').onclick = () => cur < STEPS.length - 1 && render(cur + 1);
+
+render(0);
+</script>

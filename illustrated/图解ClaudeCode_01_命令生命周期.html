@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图解 Claude Code #1 — 一条命令的完整生命周期</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FFFFFF;
+      --bg-card: #FAFAF7;
+      --bg-code: #F5F3EE;
+      --text-primary: #1A1A18;
+      --text-secondary: #5C5C58;
+      --text-tertiary: #8A8A85;
+      --border: #E5E3DC;
+      --accent: #2D5BE3;
+      --accent-light: #EEF2FC;
+      --phase1: #3B8BD4;
+      --phase1-light: #E6F1FB;
+      --phase1-dark: #0C447C;
+      --phase2: #7F77DD;
+      --phase2-light: #EEEDFE;
+      --phase2-dark: #3C3489;
+      --phase3: #888780;
+      --phase3-light: #F1EFE8;
+      --phase3-dark: #2C2C2A;
+      --phase4-permission: #BA7517;
+      --phase4-permission-light: #FAEEDA;
+      --phase4-engine: #3B8BD4;
+      --phase4-exec: #639922;
+      --phase4-exec-light: #EAF3DE;
+      --phase4-denied: #E24B4A;
+      --phase5: #1D9E75;
+      --phase5-light: #E1F5EE;
+      --phase5-dark: #085041;
+      --agent: #D4537E;
+      --agent-light: #FBEAF0;
+      --agent-dark: #72243E;
+      --serif: 'Noto Serif SC', 'Source Han Serif SC', serif;
+      --sans: 'Noto Sans SC', 'Source Han Sans SC', sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--sans);
+      font-size: 17px;
+      line-height: 1.85;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .article {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 60px 24px 120px;
+    }
+
+    /* Header */
+    .series-label {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-family: var(--serif);
+      font-size: 40px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+
+    .subtitle {
+      font-size: 19px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 40px;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 14px;
+      color: var(--text-tertiary);
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 48px;
+    }
+
+    .meta-dot {
+      color: var(--border);
+    }
+
+    /* Headings */
+    h2 {
+      font-family: var(--serif);
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.4;
+      margin: 64px 0 20px;
+      color: var(--text-primary);
+    }
+
+    h3 {
+      font-family: var(--sans);
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 1.5;
+      margin: 40px 0 12px;
+      color: var(--text-primary);
+    }
+
+    /* Paragraph */
+    p {
+      margin-bottom: 20px;
+      color: var(--text-primary);
+    }
+
+    p+p {
+      margin-top: 0;
+    }
+
+    /* Emphasis */
+    strong {
+      font-weight: 700;
+    }
+
+    /* Code */
+    code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      background: var(--bg-code);
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: var(--text-primary);
+    }
+
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      margin: 24px 0 28px;
+      font-family: var(--mono);
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-primary);
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      font-size: inherit;
+    }
+
+    /* Phase card */
+    .phase-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      margin: 32px 0;
+      position: relative;
+    }
+
+    .phase-card::before {
+      content: attr(data-phase);
+      position: absolute;
+      top: -13px;
+      left: 24px;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      padding: 2px 12px;
+      border-radius: 20px;
+    }
+
+    .phase-card[data-color="blue"]::before {
+      background: var(--phase1-light);
+      color: var(--phase1-dark);
+    }
+
+    .phase-card[data-color="purple"]::before {
+      background: var(--phase2-light);
+      color: var(--phase2-dark);
+    }
+
+    .phase-card[data-color="gray"]::before {
+      background: var(--phase3-light);
+      color: var(--phase3-dark);
+    }
+
+    .phase-card[data-color="amber"]::before {
+      background: var(--phase4-permission-light);
+      color: #633806;
+    }
+
+    .phase-card[data-color="teal"]::before {
+      background: var(--phase5-light);
+      color: var(--phase5-dark);
+    }
+
+    .phase-card[data-color="pink"]::before {
+      background: var(--agent-light);
+      color: var(--agent-dark);
+    }
+
+    .phase-card h3 {
+      margin-top: 8px;
+    }
+
+    .phase-card h3:first-child {
+      margin-top: 0;
+    }
+
+    /* Key insight */
+    .insight {
+      border-left: 3px solid var(--accent);
+      padding: 16px 20px;
+      margin: 24px 0;
+      background: var(--accent-light);
+      border-radius: 0 8px 8px 0;
+      font-size: 16px;
+      line-height: 1.75;
+      color: var(--text-primary);
+    }
+
+    /* File reference */
+    .file-ref {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--accent);
+      text-decoration: none;
+      background: var(--accent-light);
+      padding: 2px 10px;
+      border-radius: 4px;
+    }
+
+    /* Diagram container */
+    .diagram-wrap {
+      margin: 40px -32px;
+      padding: 0;
+    }
+
+    .diagram-wrap svg {
+      width: 100%;
+      display: block;
+    }
+
+    /* Parallel items */
+    .parallel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .parallel-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: var(--bg);
+    }
+
+    .parallel-item .label {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--phase1-dark);
+      margin-bottom: 4px;
+    }
+
+    .parallel-item .desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Flow list */
+    .flow-list {
+      list-style: none;
+      margin: 20px 0;
+      padding: 0;
+    }
+
+    .flow-list li {
+      position: relative;
+      padding: 12px 0 12px 36px;
+      border-left: 2px solid var(--border);
+      margin-left: 8px;
+    }
+
+    .flow-list li:last-child {
+      border-left-color: transparent;
+    }
+
+    .flow-list li::before {
+      content: attr(data-step);
+      position: absolute;
+      left: -9px;
+      top: 12px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+    }
+
+    /* TOC */
+    .toc {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin: 40px 0 56px;
+    }
+
+    .toc-title {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .toc-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .toc-list li {
+      margin-bottom: 8px;
+    }
+
+    .toc-list a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 15px;
+      line-height: 1.6;
+      transition: color 0.15s;
+    }
+
+    .toc-list a:hover {
+      color: var(--accent);
+    }
+
+    .toc-list .phase-num {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-right: 8px;
+    }
+
+    /* Separator */
+    .sep {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 56px 0;
+    }
+
+    /* Next article teaser */
+    .next-teaser {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      margin-top: 56px;
+    }
+
+    .next-teaser .label {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-tertiary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .next-teaser .title {
+      font-family: var(--serif);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .next-teaser .desc {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    /* Tool table */
+    .tool-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 15px;
+    }
+
+    .tool-table th {
+      text-align: left;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text-tertiary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .tool-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .tool-table td:first-child {
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 28px;
+      }
+
+      h2 {
+        font-size: 22px;
+      }
+
+      .article {
+        padding: 40px 16px 80px;
+      }
+
+      .phase-card {
+        padding: 24px 20px;
+        margin: 24px -4px;
+      }
+
+      .diagram-wrap {
+        margin: 32px -20px;
+      }
+
+      .parallel-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <article class="article">
+
+    <div class="series-label">图解 Claude Code · 第1篇</div>
+
+    <h1>一条命令的完整生命周期</h1>
+
+    <p class="subtitle">
+      从用户在终端输入 <code>fix the bug in auth.ts</code> 到最终代码被修改并返回结果，Claude Code 内部经历了什么？这篇文章追踪一条命令穿越 50 万行源码的完整路径。
+    </p>
+
+    <div class="meta">
+      <span>2026-03-31</span>
+      <span class="meta-dot">·</span>
+      <span>基于泄露源码分析</span>
+      <span class="meta-dot">·</span>
+      <span>~1,900 文件 · 512,000+ 行 TypeScript</span>
+    </div>
+
+    <!-- TOC -->
+    <nav class="toc">
+      <div class="toc-title">目录</div>
+      <ol class="toc-list">
+        <li><a href="#overview"><span class="phase-num">00</span>全局视角：五个阶段</a></li>
+        <li><a href="#phase1"><span class="phase-num">01</span>Bootstrap — 并行预取的启动艺术</a></li>
+        <li><a href="#phase2"><span class="phase-num">02</span>Context Assembly — 系统提示词的拼装</a></li>
+        <li><a href="#phase3"><span class="phase-num">03</span>Input Routing — 命令还是对话？</a></li>
+        <li><a href="#phase4"><span class="phase-num">04</span>Tool-Call Loop — Agent 的心脏</a></li>
+        <li><a href="#phase5"><span class="phase-num">05</span>Output — 渲染、记忆与遥测</a></li>
+        <li><a href="#agents"><span class="phase-num">06</span>递归：Sub-Agent 与多智能体</a></li>
+        <li><a href="#takeaways"><span class="phase-num">07</span>设计决策与启示</a></li>
+      </ol>
+    </nav>
+
+    <!-- Section 0: Overview -->
+    <h2 id="overview">全局视角</h2>
+
+    <p>
+      Claude Code 表面上是一个终端 CLI 工具。但在内部，它是一个完整的 <strong>agentic system</strong>——一个拥有工具调用能力、权限控制、记忆系统和多智能体协调的自主代理。
+    </p>
+
+    <p>
+      一条用户命令从输入到完成，会穿越五个阶段。把这张图印在脑子里，它是理解整个系统的锚点：
+    </p>
+
+    <!-- MAIN LIFECYCLE DIAGRAM -->
+    <div class="diagram-wrap">
+      <svg width="100%" viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          .n-text {
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 13px;
+            fill: #1A1A18;
+            font-weight: 500;
+          }
+
+          .n-sub {
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 11px;
+            fill: #5C5C58;
+          }
+
+          .n-tiny {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            fill: #8A8A85;
+          }
+
+          .arr-main {
+            stroke: #B4B2A9;
+            stroke-width: 1.5;
+            fill: none;
+          }
+
+          .arr-loop {
+            stroke: #3B8BD4;
+            stroke-width: 1.5;
+            fill: none;
+            stroke-dasharray: 5 4;
+          }
+
+          .arr-spawn {
+            stroke: #D4537E;
+            stroke-width: 1.2;
+            fill: none;
+            stroke-dasharray: 4 3;
+          }
+
+          @media (prefers-color-scheme: dark) {
+            .n-text {
+              fill: #E8E6DE;
+            }
+
+            .n-sub {
+              fill: #9C9A92;
+            }
+
+            .n-tiny {
+              fill: #73726C;
+            }
+
+            .arr-main {
+              stroke: #5F5E5A;
+            }
+
+            .arr-loop {
+              stroke: #378ADD;
+            }
+
+            .arr-spawn {
+              stroke: #D4537E;
+            }
+          }
+        </style>
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6"
+            orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </marker>
+        </defs>
+
+        <!-- Phase 1: Bootstrap -->
+        <rect x="40" y="30" width="140" height="52" rx="8" fill="#E6F1FB" stroke="#85B7EB" stroke-width="0.5" />
+        <text class="n-text" x="110" y="52" text-anchor="middle">Bootstrap</text>
+        <text class="n-sub" x="110" y="68" text-anchor="middle">main.tsx</text>
+        <text class="n-tiny" x="110" y="16" text-anchor="middle">PHASE 1</text>
+
+        <!-- Arrow 1→2 -->
+        <line x1="180" y1="56" x2="220" y2="56" class="arr-main" marker-end="url(#ah)" />
+
+        <!-- Phase 2: Context -->
+        <rect x="222" y="30" width="140" height="52" rx="8" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="0.5" />
+        <text class="n-text" x="292" y="52" text-anchor="middle">Context 拼装</text>
+        <text class="n-sub" x="292" y="68" text-anchor="middle">context.ts</text>
+        <text class="n-tiny" x="292" y="16" text-anchor="middle">PHASE 2</text>
+
+        <!-- Arrow 2→3 -->
+        <line x1="362" y1="56" x2="402" y2="56" class="arr-main" marker-end="url(#ah)" />
+
+        <!-- Phase 3: Routing -->
+        <rect x="404" y="30" width="120" height="52" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5" />
+        <text class="n-text" x="464" y="52" text-anchor="middle">Input 路由</text>
+        <text class="n-sub" x="464" y="68" text-anchor="middle">commands.ts</text>
+        <text class="n-tiny" x="464" y="16" text-anchor="middle">PHASE 3</text>
+
+        <!-- Arrow 3→4 -->
+        <line x1="464" y1="82" x2="464" y2="120" class="arr-main" marker-end="url(#ah)" />
+
+        <!-- Phase 4: Tool-Call Loop (the big box) -->
+        <rect x="60" y="122" width="560" height="230" rx="12" fill="none" stroke="#85B7EB" stroke-width="1"
+          stroke-dasharray="6 4" />
+        <text class="n-tiny" x="80" y="140">PHASE 4 — TOOL-CALL LOOP</text>
+
+        <!-- QueryEngine -->
+        <rect x="100" y="156" width="180" height="48" rx="8" fill="#E6F1FB" stroke="#85B7EB" stroke-width="0.5" />
+        <text class="n-text" x="190" y="176" text-anchor="middle">QueryEngine</text>
+        <text class="n-sub" x="190" y="192" text-anchor="middle">Anthropic API 调用</text>
+
+        <!-- Arrow to Response Parser -->
+        <line x1="280" y1="180" x2="320" y2="180" class="arr-main" marker-end="url(#ah)" />
+
+        <!-- Response Parser -->
+        <rect x="322" y="156" width="140" height="48" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5" />
+        <text class="n-text" x="392" y="176" text-anchor="middle">响应解析</text>
+        <text class="n-sub" x="392" y="192" text-anchor="middle">text or tool_use?</text>
+
+        <!-- Text output arrow (downward-left) -->
+        <line x1="360" y1="204" x2="300" y2="236" class="arr-main" marker-end="url(#ah)" />
+        <text class="n-tiny" x="310" y="218">text</text>
+
+        <!-- Text output -->
+        <rect x="220" y="238" width="100" height="36" rx="6" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.5" />
+        <text class="n-sub" x="270" y="261" text-anchor="middle" style="fill:#0F6E56">输出到终端</text>
+
+        <!-- Tool use arrow (downward-right) -->
+        <line x1="430" y1="204" x2="480" y2="236" class="arr-main" marker-end="url(#ah)" />
+        <text class="n-tiny" x="468" y="218">tool_use</text>
+
+        <!-- Permission Check -->
+        <rect x="430" y="238" width="160" height="48" rx="8" fill="#FAEEDA" stroke="#FAC775" stroke-width="0.5" />
+        <text class="n-text" x="510" y="258" text-anchor="middle">权限检查</text>
+        <text class="n-sub" x="510" y="274" text-anchor="middle">toolPermission</text>
+
+        <!-- Arrow to Tool Exec -->
+        <line x1="510" y1="286" x2="510" y2="308" class="arr-main" marker-end="url(#ah)" />
+
+        <!-- Tool Executor -->
+        <rect x="430" y="310" width="160" height="36" rx="6" fill="#EAF3DE" stroke="#97C459" stroke-width="0.5" />
+        <text class="n-sub" x="510" y="333" text-anchor="middle" style="fill:#3B6D11">执行工具 → 返回结果</text>
+
+        <!-- Loop back arrow -->
+        <path d="M430 328 L90 328 L90 180 L98 180" class="arr-loop" marker-end="url(#ah)" />
+        <text class="n-tiny" x="82" y="260" transform="rotate(-90,82,260)" text-anchor="middle"
+          style="fill:#3B8BD4">tool_result 回填</text>
+
+        <!-- Phase 5: Output -->
+        <line x1="340" y1="352" x2="340" y2="390" class="arr-main" marker-end="url(#ah)" />
+
+        <rect x="180" y="392" width="120" height="48" rx="8" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.5" />
+        <text class="n-text" x="240" y="412" text-anchor="middle">Ink 渲染</text>
+        <text class="n-sub" x="240" y="428" text-anchor="middle">React 终端 UI</text>
+        <text class="n-tiny" x="340" y="386" text-anchor="middle">PHASE 5</text>
+
+        <rect x="320" y="392" width="100" height="48" rx="8" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.5" />
+        <text class="n-text" x="370" y="412" text-anchor="middle">Cost</text>
+        <text class="n-sub" x="370" y="428" text-anchor="middle">Token 计费</text>
+
+        <rect x="440" y="392" width="120" height="48" rx="8" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.5" />
+        <text class="n-text" x="500" y="412" text-anchor="middle">Memory</text>
+        <text class="n-sub" x="500" y="428" text-anchor="middle">autoDream</text>
+
+        <!-- Sub-agent spawn (dashed from tool executor) -->
+        <path d="M590 328 L620 328 L620 472 L400 472" class="arr-spawn" marker-end="url(#ah)" />
+        <rect x="240" y="456" width="160" height="40" rx="8" fill="#FBEAF0" stroke="#ED93B1" stroke-width="0.5" />
+        <text class="n-text" x="320" y="476" text-anchor="middle" style="fill:#993556">AgentTool 递归</text>
+        <text class="n-tiny" x="320" y="506" text-anchor="middle" style="fill:#D4537E">↑ 整个 Phase 4 被递归 spawn</text>
+
+      </svg>
+    </div>
+
+    <p>
+      接下来我们逐阶段拆解。
+    </p>
+
+    <hr class="sep" />
+
+    <!-- PHASE 1 -->
+    <h2 id="phase1">Phase 1 — Bootstrap</h2>
+
+    <div class="phase-card" data-phase="PHASE 1 · BOOTSTRAP" data-color="blue">
+
+      <h3>入口：main.tsx</h3>
+
+      <p>
+        一切从 <code>main.tsx</code> 开始。这个文件是整个 CLI 的入口点，使用 Commander.js 解析命令行参数，然后初始化 React + Ink 的终端渲染器。
+      </p>
+
+      <p>
+        但 Claude Code 在启动性能上做了一个关键决策：<strong>在任何重量级模块加载之前，先并行启动四个 side-effect</strong>。
+      </p>
+
+      <pre><code>// main.tsx — 作为 side-effect 在其他 import 之前触发
+startMdmRawRead()
+startKeychainPrefetch()</code></pre>
+
+      <div class="parallel-grid">
+        <div class="parallel-item">
+          <div class="label">MDM Settings</div>
+          <div class="desc">读取 Mobile Device Management 配置，用于企业环境下的策略控制</div>
+        </div>
+        <div class="parallel-item">
+          <div class="label">Keychain Prefetch</div>
+          <div class="desc">从 macOS Keychain 预取认证凭据，避免后续阻塞</div>
+        </div>
+        <div class="parallel-item">
+          <div class="label">API Preconnect</div>
+          <div class="desc">预建立与 Anthropic API 的 TCP/TLS 连接</div>
+        </div>
+        <div class="parallel-item">
+          <div class="label">GrowthBook Init</div>
+          <div class="desc">初始化特性开关系统，决定哪些功能对当前用户可用</div>
+        </div>
+      </div>
+
+      <div class="insight">
+        <strong>设计决策</strong>：启动时间 = max(四个并行任务中最慢的那个)，而不是它们的总和。这就是为什么 Claude Code
+        的冷启动比你预期的快——它在你还没输入第一个字符的时候，已经在后台完成了鉴权和连接准备。
+      </div>
+
+      <p>
+        同时，重量级模块被延迟加载——OpenTelemetry（约 400KB）和 gRPC（约 700KB）通过动态 <code>import()</code> 在实际需要时才加载，而不是启动时。
+      </p>
+
+    </div>
+
+    <hr class="sep" />
+
+    <!-- PHASE 2 -->
+    <h2 id="phase2">Phase 2 — Context Assembly</h2>
+
+    <div class="phase-card" data-phase="PHASE 2 · CONTEXT" data-color="purple">
+
+      <h3>系统提示词不是一个字符串</h3>
+
+      <p>
+        大多数 AI 应用的系统提示词是一个写死的字符串。Claude Code 的系统提示词是一台<strong>拼装机器</strong>。
+      </p>
+
+      <p>
+        <code>context.ts</code> 负责在运行时将多个来源的信息组合成最终的 system prompt。核心架构是一个分段缓存系统：通过
+        <code>SYSTEM_PROMPT_DYNAMIC_BOUNDARY</code> 标记，将提示词分为两部分——
+      </p>
+
+      <ul class="flow-list">
+        <li data-step="S"><strong>静态段（Static）</strong>：跨组织可缓存的通用指令，比如基础行为规则、工具使用规范。这些内容利用 Anthropic API 的 prompt caching
+          特性，避免重复计算。</li>
+        <li data-step="D"><strong>动态段（Dynamic）</strong>：每次会话变化的内容，包括当前项目的上下文、用户的权限模式、已连接的 MCP 服务器列表、从 memory 文件中读取的持久记忆。
+        </li>
+      </ul>
+
+      <p>
+        动态段中有一个函数叫 <code>DANGEROUS_uncachedSystemPromptSection()</code>——名字里的 "DANGEROUS"
+        不是在开玩笑。它标记了那些你<strong>显式希望</strong>打破缓存的 volatile section。命名本身就是一种防御性编程：如果你用错了这个函数，名字会让你三思。
+      </p>
+
+      <div class="insight">
+        <strong>设计决策</strong>：系统提示词的缓存分界是 token 经济学的直接体现。静态段在 API 侧只计算一次，之后走缓存；动态段每次都重新计算。将内容放错区域意味着要么浪费
+        token（本该缓存的没缓存），要么看到过期信息（本该刷新的被缓存了）。
+      </div>
+
+    </div>
+
+    <hr class="sep" />
+
+    <!-- PHASE 3 -->
+    <h2 id="phase3">Phase 3 — Input Routing</h2>
+
+    <div class="phase-card" data-phase="PHASE 3 · ROUTING" data-color="gray">
+
+      <h3>两条路径</h3>
+
+      <p>
+        用户输入到达后，系统做一个简单的分流判断：
+      </p>
+
+      <p>
+        <strong>路径 A：斜杠命令</strong>。以 <code>/</code> 开头的输入走 <code>commands.ts</code> 的命令注册表。约 50
+        个命令——<code>/commit</code> 创建 git commit，<code>/review</code> 做代码审查，<code>/compact</code>
+        压缩上下文，<code>/doctor</code> 诊断环境问题。这些命令不经过 LLM，直接在本地执行。
+      </p>
+
+      <p>
+        <strong>路径 B：自然语言</strong>。其他所有输入走 <code>QueryEngine</code>——这是整个系统的核心引擎，负责与 Anthropic API 交互。这是一个 46,000
+        行的文件，处理流式响应、tool-call 循环、thinking mode、重试逻辑和 token 计数。
+      </p>
+
+      <p>
+        路径 B 是 Claude Code 作为 "agent" 的本质所在。接下来我们进入它的核心循环。
+      </p>
+
+    </div>
+
+    <hr class="sep" />
+
+    <!-- PHASE 4 -->
+    <h2 id="phase4">Phase 4 — Tool-Call Loop</h2>
+
+    <p>
+      这是整个 Claude Code 最重要的一个机制。如果你只记住一张图，记住这张：
+    </p>
+
+    <!-- TOOL CALL LOOP DETAIL DIAGRAM -->
+    <div class="diagram-wrap">
+      <svg width="100%" viewBox="0 0 680 600" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          .lt {
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+          }
+
+          .ls {
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 11px;
+          }
+
+          .lm {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+          }
+
+          .lt,
+          .ls {
+            fill: #1A1A18;
+          }
+
+          .lm {
+            fill: #8A8A85;
+          }
+
+          .lk {
+            stroke: #B4B2A9;
+            stroke-width: 1.2;
+            fill: none;
+          }
+
+          @media (prefers-color-scheme: dark) {
+
+            .lt,
+            .ls {
+              fill: #E8E6DE;
+            }
+
+            .lm {
+              fill: #73726C;
+            }
+
+            .lk {
+              stroke: #5F5E5A;
+            }
+          }
+        </style>
+        <defs>
+          <marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6"
+            orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </marker>
+        </defs>
+
+        <!-- Step 1: User message + context -->
+        <rect x="200" y="20" width="280" height="44" rx="8" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="0.5" />
+        <text class="lt" x="340" y="47" text-anchor="middle">用户消息 + system prompt</text>
+
+        <line x1="340" y1="64" x2="340" y2="96" class="lk" marker-end="url(#ah2)" />
+
+        <!-- Step 2: API Call -->
+        <rect x="200" y="98" width="280" height="44" rx="8" fill="#E6F1FB" stroke="#85B7EB" stroke-width="0.5" />
+        <text class="lt" x="340" y="118" text-anchor="middle">Anthropic API 流式调用</text>
+        <text class="ls" x="340" y="133" text-anchor="middle" style="fill:#5C5C58">QueryEngine → messages
+          endpoint</text>
+
+        <line x1="340" y1="142" x2="340" y2="174" class="lk" marker-end="url(#ah2)" />
+
+        <!-- Step 3: Parse response -->
+        <rect x="220" y="176" width="240" height="44" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5" />
+        <text class="lt" x="340" y="196" text-anchor="middle">解析流式响应</text>
+        <text class="ls" x="340" y="211" text-anchor="middle" style="fill:#5C5C58">content_block 类型判断</text>
+
+        <!-- Branch: text -->
+        <line x1="260" y1="220" x2="140" y2="270" class="lk" marker-end="url(#ah2)" />
+        <text class="lm" x="178" y="242" style="fill:#1D9E75">type: text</text>
+
+        <rect x="60" y="272" width="160" height="40" rx="8" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.5" />
+        <text class="ls" x="140" y="296" text-anchor="middle" style="fill:#0F6E56">流式输出到终端（完成）</text>
+
+        <!-- Branch: tool_use -->
+        <line x1="420" y1="220" x2="500" y2="270" class="lk" marker-end="url(#ah2)" />
+        <text class="lm" x="476" y="242" style="fill:#BA7517">type: tool_use</text>
+
+        <!-- Permission -->
+        <rect x="420" y="272" width="200" height="50" rx="8" fill="#FAEEDA" stroke="#FAC775" stroke-width="0.5" />
+        <text class="lt" x="520" y="292" text-anchor="middle">权限检查</text>
+        <text class="ls" x="520" y="310" text-anchor="middle" style="fill:#854F0B">mode: default|auto|plan</text>
+
+        <!-- Denied path -->
+        <line x1="440" y1="322" x2="380" y2="362" class="lk" marker-end="url(#ah2)" />
+        <text class="lm" x="388" y="342" style="fill:#E24B4A">denied</text>
+
+        <rect x="280" y="364" width="140" height="36" rx="6" fill="#FCEBEB" stroke="#F09595" stroke-width="0.5" />
+        <text class="ls" x="350" y="386" text-anchor="middle" style="fill:#A32D2D">错误信息作为 tool_result</text>
+
+        <!-- Approved path -->
+        <line x1="560" y1="322" x2="560" y2="362" class="lk" marker-end="url(#ah2)" />
+        <text class="lm" x="584" y="342" style="fill:#639922">approved</text>
+
+        <!-- Tool Execution -->
+        <rect x="460" y="364" width="200" height="50" rx="8" fill="#EAF3DE" stroke="#97C459" stroke-width="0.5" />
+        <text class="lt" x="560" y="384" text-anchor="middle">执行工具</text>
+        <text class="ls" x="560" y="400" text-anchor="middle" style="fill:#3B6D11">Bash / FileEdit / Grep ...</text>
+
+        <!-- Both converge to tool_result -->
+        <line x1="350" y1="400" x2="350" y2="444" class="lk" marker-end="url(#ah2)" />
+        <line x1="560" y1="414" x2="560" y2="434" class="lk" />
+        <line x1="560" y1="434" x2="460" y2="434" class="lk" />
+        <line x1="460" y1="434" x2="460" y2="444" class="lk" marker-end="url(#ah2)" />
+
+        <!-- Append tool result -->
+        <rect x="260" y="446" width="280" height="44" rx="8" fill="#E6F1FB" stroke="#85B7EB" stroke-width="0.5" />
+        <text class="lt" x="400" y="466" text-anchor="middle">将 tool_result 追加到 messages</text>
+        <text class="ls" x="400" y="481" text-anchor="middle" style="fill:#5C5C58">作为下一轮对话的输入</text>
+
+        <!-- Loop back arrow -->
+        <path d="M260 468 L50 468 L50 120 L198 120" stroke="#3B8BD4" stroke-width="1.5" fill="none"
+          stroke-dasharray="5 4" marker-end="url(#ah2)" />
+        <text class="lm" x="38" y="300" transform="rotate(-90,38,300)" text-anchor="middle"
+          style="fill:#3B8BD4">循环，直到模型只输出 text</text>
+
+        <!-- Stop condition label -->
+        <rect x="220" y="530" width="240" height="36" rx="6" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5" />
+        <text class="ls" x="340" y="553" text-anchor="middle" style="fill:#5C5C58">终止条件：响应中不含 tool_use</text>
+        <line x1="140" y1="312" x2="240" y2="530" class="lk" stroke-dasharray="3 3" marker-end="url(#ah2)"
+          style="stroke:#B4B2A9;stroke-width:0.8" />
+
+      </svg>
+    </div>
+
+    <div class="phase-card" data-phase="PHASE 4 · TOOL-CALL LOOP" data-color="amber">
+
+      <h3>循环的本质</h3>
+
+      <p>
+        Tool-call loop 是一个 <strong>while(true)</strong> 循环。每一轮的过程是：
+      </p>
+
+      <ul class="flow-list">
+        <li data-step="1">将当前对话历史（包括 system prompt、用户消息、之前的 tool 调用和结果）发送给 Anthropic API</li>
+        <li data-step="2">流式接收模型响应，逐 content_block 解析</li>
+        <li data-step="3">如果 content_block 类型是 <code>text</code>，直接流式输出到终端</li>
+        <li data-step="4">如果类型是 <code>tool_use</code>，进入权限检查 → 执行 → 结果回填</li>
+        <li data-step="5">将 tool_result 追加到 messages 数组，回到步骤 1</li>
+      </ul>
+
+      <p>
+        循环终止的条件很简单：当模型的响应中只包含 <code>text</code> 类型的 content_block，不再请求任何工具调用时，循环结束。
+      </p>
+
+      <h3>权限系统：安全边界</h3>
+
+      <p>
+        每次 tool_use 请求在执行前都会经过 <code>toolPermission</code> hooks 的拦截。Claude Code 支持多种权限模式：
+      </p>
+
+      <table class="tool-table">
+        <thead>
+          <tr>
+            <th>模式</th>
+            <th>行为</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>default</td>
+            <td>交互式提示——用户逐个审批或拒绝每个工具调用</td>
+          </tr>
+          <tr>
+            <td>auto</td>
+            <td>基于 ML 分类器的自动审批，低风险操作自动放行</td>
+          </tr>
+          <tr>
+            <td>plan</td>
+            <td>计划模式——模型先规划再执行，用户审批整个计划</td>
+          </tr>
+          <tr>
+            <td>bypass</td>
+            <td>跳过所有权限检查（仅限受信环境）</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        每个工具的每个操作都被分类为 LOW、MEDIUM 或 HIGH 风险。<code>.gitconfig</code>、<code>.bashrc</code>、<code>.zshrc</code>
+        等敏感文件被特别保护，防止自动编辑。甚至有专门的路径遍历攻击防护——URL 编码遍历、Unicode 规范化攻击、反斜杠注入都有处理。
+      </p>
+
+      <div class="insight">
+        <strong>设计决策</strong>：安全性是从玩具到产品的分界线。Claude Code
+        不是简单地问"允许还是拒绝"，而是建立了一个完整的风险分类和上下文感知的权限系统。这也是为什么它有一个"权限解释器"——在用户审批之前，用另一个 LLM 调用来生成人类可读的风险说明。
+      </div>
+
+      <h3>工具注册表</h3>
+
+      <p>
+        Claude Code 拥有 40 多个工具，每个都是一个自包含模块，定义了输入 schema（Zod 验证）、权限模型和执行逻辑。核心工具包括：
+      </p>
+
+      <table class="tool-table">
+        <thead>
+          <tr>
+            <th>工具</th>
+            <th>职责</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>BashTool</td>
+            <td>Shell 命令执行（支持沙箱模式）</td>
+          </tr>
+          <tr>
+            <td>FileReadTool</td>
+            <td>文件读取（支持图片、PDF、Notebook）</td>
+          </tr>
+          <tr>
+            <td>FileEditTool</td>
+            <td>局部文件修改（字符串替换）</td>
+          </tr>
+          <tr>
+            <td>GrepTool</td>
+            <td>基于 ripgrep 的内容搜索</td>
+          </tr>
+          <tr>
+            <td>GlobTool</td>
+            <td>文件模式匹配搜索</td>
+          </tr>
+          <tr>
+            <td>AgentTool</td>
+            <td>Spawn 子代理（递归调用整个循环）</td>
+          </tr>
+          <tr>
+            <td>MCPTool</td>
+            <td>MCP 服务器工具调用</td>
+          </tr>
+          <tr>
+            <td>LSPTool</td>
+            <td>Language Server Protocol 集成</td>
+          </tr>
+          <tr>
+            <td>WebFetchTool</td>
+            <td>抓取网页内容</td>
+          </tr>
+          <tr>
+            <td>WebSearchTool</td>
+            <td>网络搜索</td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+
+    <hr class="sep" />
+
+    <!-- PHASE 5 -->
+    <h2 id="phase5">Phase 5 — Output</h2>
+
+    <div class="phase-card" data-phase="PHASE 5 · OUTPUT" data-color="teal">
+
+      <h3>三件事同时发生</h3>
+
+      <p>
+        当 tool-call loop 结束后，系统并行处理三件事：
+      </p>
+
+      <p>
+        <strong>终端渲染</strong>：Claude Code 使用 React + Ink 做终端 UI。没错，跟写网页一样用 React——只是渲染目标是终端而不是浏览器。约 140 个 Ink
+        组件构成了完整的终端交互界面。这大概是目前公开的最大规模 Ink 应用之一。
+      </p>
+
+      <p>
+        <strong>成本追踪</strong>：<code>cost-tracker.ts</code> 实时记录每次 API 调用的 token 消耗。输入 token、输出 token、缓存命中率都在追踪范围内。用户可以通过
+        <code>/cost</code> 命令查看累计消耗。
+      </p>
+
+      <p>
+        <strong>记忆巩固（autoDream）</strong>：这是最有趣的部分。Claude Code 有一个叫做 "Dream" 的后台记忆系统。它通过一个三重门控机制决定是否需要运行一次记忆巩固——24
+        小时时间间隔、至少 5 次会话间隔、成功获取一个并发锁。三个条件全部满足才会触发。
+      </p>
+
+      <p>
+        Dream 运行时，一个 fork 出来的子代理会执行四个阶段：定位记忆目录 → 收集近期信号 → 合并写入记忆文件 → 修剪和索引。这个子代理只有只读 bash
+        权限——它能看你的项目但不能改任何东西。它的工作纯粹是记忆整理。
+      </p>
+
+    </div>
+
+    <hr class="sep" />
+
+    <!-- Sub-agents -->
+    <h2 id="agents">递归：Sub-Agent 与多智能体</h2>
+
+    <div class="phase-card" data-phase="EXTENSION · MULTI-AGENT" data-color="pink">
+
+      <p>
+        当模型在 Phase 4 中调用 <code>AgentTool</code> 时，整个 Phase 3→4→5 会被递归地 spawn 出来。子代理拥有自己的对话历史、自己的 tool-call loop、自己的权限检查。
+      </p>
+
+      <p>
+        在更高级的模式下，<code>coordinator/</code> 模块接管。它将单个 agent 转变为一个协调者，管理多个并行工作的 worker agent。流程分四阶段：worker 并行调研 →
+        coordinator 综合分析并编写规格 → worker 按规格实现 → worker 验证结果。
+      </p>
+
+      <p>
+        Worker 之间通过 XML 格式的 <code>&lt;task-notification&gt;</code> 消息通信，有一个共享的 scratchpad 目录用于持久化跨 worker 的知识。
+      </p>
+
+      <div class="insight">
+        <strong>设计决策</strong>：Agent swarm 的核心约束是"不要懒惰委派"。Coordinator 的提示词中明确禁止说"基于你的发现"——你必须实际读取 worker
+        的输出，然后精确指定下一步做什么。这是对多智能体系统中最常见失败模式的直接防御。
+      </div>
+
+    </div>
+
+    <hr class="sep" />
+
+    <!-- Takeaways -->
+    <h2 id="takeaways">设计决策与启示</h2>
+
+    <p>
+      回顾整个生命周期，有几个架构决策值得记住：
+    </p>
+
+    <p>
+      <strong>并行优先</strong>。从启动时的四路并行预取，到 Output 阶段的并行渲染/计费/记忆，到多智能体的并行工作——整个系统在每一个层级都在追求并行化。
+    </p>
+
+    <p>
+      <strong>缓存是一等公民</strong>。系统提示词的静态/动态分段、工具 schema 缓存、GrowthBook 特性开关的 aggressive cache——token 是真金白银，每一个能省的 token
+      都不浪费。
+    </p>
+
+    <p>
+      <strong>安全不是附加功能</strong>。权限系统不是在 tool-call loop 之外的一个检查站，而是嵌入在循环内部的拦截链。每一次工具调用都过这条链，没有例外。
+    </p>
+
+    <p>
+      <strong>递归即扩展</strong>。AgentTool 让整个系统变得 fractal——一个 agent 可以 spawn 另一个 agent，后者有完整的工具集和权限。系统的能力通过递归而非添加新模块来扩展。
+    </p>
+
+    <!-- Next article teaser -->
+    <div class="next-teaser">
+      <div class="label">下一篇</div>
+      <div class="title">图解 Claude Code #2 — QueryEngine：Agent 的大脑</div>
+      <div class="desc">
+        深入 46,000 行的核心引擎。流式响应如何处理？Tool-call 循环的状态机是什么形状？Thinking mode 怎么实现？重试逻辑如何避免 cascade failure？
+      </div>
+    </div>
+
+  </article>
+</body>
+
+</html>
